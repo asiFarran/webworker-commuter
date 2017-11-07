@@ -13,7 +13,7 @@ const sum = function(num1, num2){
 
 const incWithPromise = function(num){
 	return new Promise((resolve,reject) => {
-		setTimeout(() => resolve(num + 1), 2000)
+		resolve(num + 1)
 	});
 }
 

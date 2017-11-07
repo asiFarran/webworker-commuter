@@ -1,113 +1,115 @@
 import R from 'ramda'
-import * as Rx from 'rxjs'
+import {Observable} from "rxjs/Observable";
+import "rxjs/add/operator/filter";
+import "rxjs/add/operator/map";
+import "rxjs/add/operator/partition";
+import "rxjs/add/observable/fromevent";
 
 function Commuter(worker){
 
-  const incoming$ = Rx.Observable.fromEvent(worker, 'message').map(x => x.data)
+  const incomingMessages$ = Rx.Observable.fromEvent(worker, 'message').map(x => x.data)
 
+  const msgsOfType = type => incomingMessages$.filter(x => x.type == type)
 
+  const sendResult = (id, response, streaming = false, streamComplete = false) => {
 
-const msgsOfType = type => incoming$.filter(x => x.type == type)
-
-const sendResult = (id, response, streaming = false, streamComplete = false) => {
-
-  let msg = {
-    id,
-    payload: response
-  }
-
-  if(streaming){
-    msg.streaming = true
-
-    if(streamComplete){
-      msg.complete = true
+    let msg = {
+      id,
+      payload: response
     }
+
+    if(streaming){
+      msg.streaming = true
+
+      if(streamComplete){
+        msg.complete = true
+      }
+    }
+
+    send(msg)
   }
 
-  send(msg)
-}
+  const sendError = (id, errMsg) => {
 
-const sendError = (id, errMsg) => {
+    send({
+      id,
+      error: true,
+      reason: errMsg
+    });
+  }
 
-  send({
-    id,
-    error: true,
-    reason: errMsg
-  });
-}
+  const send = msg => worker.postMessage(JSON.stringify(msg))
 
-const send = msg => worker.postMessage(JSON.stringify(msg))
+  const isFunction = val => Object.prototype.toString.call(val) === '[object Function]'
 
-const isFunction = val => Object.prototype.toString.call(val) === '[object Function]'
+  const isNotNil = R.compose(R.not,R.isNil)
 
-const isNotNil = R.compose(R.not,R.isNil)
+  const hasFunction = R.curry( (name, obj) => R.both(isNotNil, R.propSatisfies(isFunction, name))(obj))
 
-const hasFunction = R.curry( (name, obj) => R.both(isNotNil, R.propSatisfies(isFunction, name))(obj))
+  const isPromise = hasFunction('then') 
 
-const isPromise = hasFunction('then') 
+  const isObservable = hasFunction('subscribe')
 
-const isObservable = hasFunction('subscribe')
+  const log = (...args) => {
+    send({
+      type: 'LOG',
+      message: args
+    });
+  }
 
-const log = (...args) => {
-  send({
-    type: 'LOG',
-    message: args
-  });
-}
+  const processMsg = (func, shouldRespond) => msg => {
 
-const processMsg = (func, shouldRespond) => msg => {
+    let {payload} = msg
+    
+    let OK = R.partial(sendResult, [msg.id])
+    let FAIL = R.partial(sendError, [msg.id])
 
-  let {payload} = msg
-  
-  let OK = R.partial(sendResult, [msg.id])
-  let FAIL = R.partial(sendError, [msg.id])
+    const handlePromise = promise => promise
+      .then(res => OK(res))
+      .catch(err => FAIL(err.message))
 
-  const handlePromise = promise => promise
-    .then(res => OK(res))
-    .catch(err => FAIL(err.message))
+    const handleObservable = obs => obs.subscribe(
+      next => {
+        OK(next, true)
+      },
+      err => FAIL(err.message),
+      complete => OK(complete, true, true)
+    ) 
 
-  const handleObservable = obs => obs.subscribe(
-    next => {
-      OK(next, true)
-    },
-    err => FAIL(err.message),
-    complete => OK(complete, true, true)
-  ) 
-
-  const handleSimpleValue = res => OK(res)
+    const handleSimpleValue = res => OK(res)
 
 
-  const respond = R.cond([
-    [isPromise, handlePromise],
-    [isObservable, handleObservable],
-    [R.T, handleSimpleValue]
-  ]);
+    const respond = R.cond([
+      [isPromise, handlePromise],
+      [isObservable, handleObservable],
+      [R.T, handleSimpleValue]
+    ]);
 
 
-  try{
+    try{
 
-    let response = func(...payload)
+      let response = func(...payload)
 
-    if(shouldRespond) respond(response)
+      if(shouldRespond) respond(response)
 
-  }catch(err){
+    }catch(err){
 
-    FAIL(err.message)
-  } 
-}
+      FAIL(err.message)
+    } 
+  }
 
-const on = (type, func, shouldRespond = true) => {
+  const on = (type, func, shouldRespond = true) => {
 
-  let handler = processMsg(func, shouldRespond)
+    let handler = processMsg(func, shouldRespond)
 
-  msgsOfType(type).subscribe(handler)
-}
+    msgsOfType(type).subscribe(handler)
+  }
 
-return {
-  log,
-  processMsg,
-  on
-}
+  return {
+    log,
+    processMsg,
+    on
+  }
 
 }
 

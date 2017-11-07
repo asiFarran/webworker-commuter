@@ -1,9 +1,16 @@
-import * as Rx from 'rxjs'
+import {Observable} from "rxjs/Observable";
+import "rxjs/add/operator/filter";
+import "rxjs/add/operator/map";
+import "rxjs/add/operator/partition";
+import "rxjs/add/observable/fromevent";
 
 function Commuter(worker, logger){
-  const workerStream$ = Rx.Observable.fromEvent(worker, 'message').filter(x => x.data.trim() != '').map(x => JSON.parse(x.data));
+  
+  const workerMessagesStream$ = Observable.fromEvent(worker, 'message')
+  .filter(x => x.data.trim() != '')
+  .map(x => JSON.parse(x.data));
 
-  const [logStream$, messageStream$] = workerStream$.partition(msg =>  msg.type === 'LOG')
+  const [logStream$, messageStream$] = workerMessagesStream$.partition(msg =>  msg.type === 'LOG')
 
   const isStreamingAction = (msg) => msg.streaming == true
   const isStreamComplete = (msg) => msg.complete == true
@@ -30,7 +37,7 @@ function Commuter(worker, logger){
   			
         msg.id = generateId()
 
-        return Rx.Observable.create(function (observer) {
+        return Observable.create(function (observer) {
 
           messageStream$
           .filter(x => x.id == msg.id)
