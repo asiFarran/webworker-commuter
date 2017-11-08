@@ -1,15 +1,40 @@
 import R from 'ramda'
 import {Observable} from "rxjs/Observable";
+import {Subject} from "rxjs/Subject";
 import "rxjs/add/operator/filter";
 import "rxjs/add/operator/map";
 import "rxjs/add/operator/partition";
 import "rxjs/add/observable/fromevent";
 
+const isFunction = val => Object.prototype.toString.call(val) === '[object Function]'
+const isNotNil = R.compose(R.not,R.isNil)
+const hasFunction = R.curry( (name, obj) => R.both(isNotNil, R.propSatisfies(isFunction, name))(obj))
+const isPromise = hasFunction('then') 
+const isObservable = hasFunction('subscribe')
+const isDedicatedWorker = hasFunction('postMessage')
+
 const Commuter = (worker) => {
 
-  const port = worker.port == null ? worker : worker.port
+  let ports = new Set()
 
-  const incomingMessages$ = Observable.fromEvent(port, 'message').map(x => x.data)
+  const incomingMessages$ = new Subject();
+
+  if(isDedicatedWorker(worker)){
+
+    ports.add(worker)
+    Observable.fromEvent(worker, 'message').map(x => x.data).subscribe(msg => incomingMessages$.next(msg))
+  
+  }else{
+    
+    worker.onconnect = e => {
+
+       let port = e.ports[0]
+       ports.add(port)
+       port.start()
+
+       Observable.fromEvent(port, 'message').map(x => x.data).subscribe(msg => incomingMessages$.next(msg))
+    }
+  }
 
   const msgsOfType = type => incomingMessages$.filter(x => x.type == type)
 
@@ -40,17 +65,11 @@ const Commuter = (worker) => {
     });
   }
 
-  const send = msg => port.postMessage(JSON.stringify(msg))
+  const send = R.pipe(
+    JSON.stringify,
+    msg => R.forEach(port => port.postMessage(msg), ports)
+  )
 
-  const isFunction = val => Object.prototype.toString.call(val) === '[object Function]'
-
-  const isNotNil = R.compose(R.not,R.isNil)
-
-  const hasFunction = R.curry( (name, obj) => R.both(isNotNil, R.propSatisfies(isFunction, name))(obj))
-
-  const isPromise = hasFunction('then') 
-
-  const isObservable = hasFunction('subscribe')
 
   const log = (...args) => {    
     send({
@@ -107,11 +126,9 @@ const Commuter = (worker) => {
     msgsOfType(type).subscribe(handler)
   }
 
-  console.log(port)
 
   return {
     log,
-    processMsg,
     on
   }
 

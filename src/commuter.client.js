@@ -16,7 +16,7 @@ const configureWorker = worker => {
 }
 
 const Commuter = (worker, logger) => {
-   
+
   const port = configureWorker(worker)
 
   const workerMessagesStream$ = Observable.fromEvent(port, 'message')
@@ -33,6 +33,8 @@ const Commuter = (worker, logger) => {
 
 
   logStream$.subscribe(msg => logger.apply(null, msg.message));
+
+  messageStream$.subscribe(msg => console.log('incoming', msg));
 
   var id = 0;
   const generateId = () => id++
