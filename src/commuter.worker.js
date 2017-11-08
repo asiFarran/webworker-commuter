@@ -17,24 +17,7 @@ const Commuter = (worker) => {
 
   let ports = new Set()
 
-  const incomingMessages$ = new Subject();
-
-  if(isDedicatedWorker(worker)){
-
-    ports.add(worker)
-    Observable.fromEvent(worker, 'message').map(x => x.data).subscribe(msg => incomingMessages$.next(msg))
-  
-  }else{
-    
-    worker.onconnect = e => {
-
-       let port = e.ports[0]
-       ports.add(port)
-       port.start()
-
-       Observable.fromEvent(port, 'message').map(x => x.data).subscribe(msg => incomingMessages$.next(msg))
-    }
-  }
+  const incomingMessages$ = new Subject();  
 
   const msgsOfType = type => incomingMessages$.filter(x => x.type == type)
 
@@ -126,6 +109,24 @@ const Commuter = (worker) => {
     msgsOfType(type).subscribe(handler)
   }
 
+
+  // configure worker
+  if(isDedicatedWorker(worker)){
+
+    ports.add(worker)
+    Observable.fromEvent(worker, 'message').map(x => x.data).subscribe(msg => incomingMessages$.next(msg))
+  
+  }else{
+    
+    worker.onconnect = e => {
+
+       let port = e.ports[0]
+       ports.add(port)
+       port.start()
+
+       Observable.fromEvent(port, 'message').map(x => x.data).subscribe(msg => incomingMessages$.next(msg))
+    }
+  }
 
   return {
     log,

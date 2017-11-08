@@ -34,8 +34,6 @@ const Commuter = (worker, logger) => {
 
   logStream$.subscribe(msg => logger.apply(null, msg.message));
 
-  messageStream$.subscribe(msg => console.log('incoming', msg));
-
   var id = 0;
   const generateId = () => id++
 
