@@ -1,9 +1,13 @@
 const path = require('path');
 
 module.exports = {
-	entry: './src/worker.js',
+	entry: {
+    worker: './src/worker.js',
+    client_dedicated: './test/browser/dedicated.js',
+    client_shared: './test/browser/shared.js'
+  },
 	output: {
-		filename: 'worker_bundle.js',
+		filename: '[name]_bundle.js',
 		path: path.resolve(__dirname, 'dist')
 	},
 	module: {

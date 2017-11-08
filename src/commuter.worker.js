@@ -5,9 +5,11 @@ import "rxjs/add/operator/map";
 import "rxjs/add/operator/partition";
 import "rxjs/add/observable/fromevent";
 
-function Commuter(worker){
+const Commuter = (worker) => {
 
-  const incomingMessages$ = Rx.Observable.fromEvent(worker, 'message').map(x => x.data)
+  const port = worker.port == null ? worker : worker.port
+
+  const incomingMessages$ = Observable.fromEvent(port, 'message').map(x => x.data)
 
   const msgsOfType = type => incomingMessages$.filter(x => x.type == type)
 
@@ -38,7 +40,7 @@ function Commuter(worker){
     });
   }
 
-  const send = msg => worker.postMessage(JSON.stringify(msg))
+  const send = msg => port.postMessage(JSON.stringify(msg))
 
   const isFunction = val => Object.prototype.toString.call(val) === '[object Function]'
 
@@ -50,7 +52,7 @@ function Commuter(worker){
 
   const isObservable = hasFunction('subscribe')
 
-  const log = (...args) => {
+  const log = (...args) => {    
     send({
       type: 'LOG',
       message: args
@@ -104,6 +106,8 @@ function Commuter(worker){
 
     msgsOfType(type).subscribe(handler)
   }
+
+  console.log(port)
 
   return {
     log,

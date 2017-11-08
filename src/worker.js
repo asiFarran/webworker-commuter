@@ -1,4 +1,7 @@
-self.removeEventListener = function(){}
+
+if(!self.removeEventListener){
+	self.removeEventListener = function(){}
+}
 
 import Commuter from './commuter.worker.js'
 

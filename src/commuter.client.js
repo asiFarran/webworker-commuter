@@ -4,9 +4,22 @@ import "rxjs/add/operator/map";
 import "rxjs/add/operator/partition";
 import "rxjs/add/observable/fromevent";
 
-function Commuter(worker, logger){
-  
-  const workerMessagesStream$ = Observable.fromEvent(worker, 'message')
+const configureWorker = worker => {  
+
+  if(worker.port != null){
+    worker.port.start()
+    return worker.port
+  }
+  else{
+    return worker
+  }
+}
+
+const Commuter = (worker, logger) => {
+   
+  const port = configureWorker(worker)
+
+  const workerMessagesStream$ = Observable.fromEvent(port, 'message')
   .filter(x => x.data.trim() != '')
   .map(x => JSON.parse(x.data));
 
@@ -18,7 +31,7 @@ function Commuter(worker, logger){
   const isStreamTerminationMessage = (msg) => (isStreamingAction(msg) && isStreamComplete(msg)) ? true : false
   const moreMessagesExpected = (msg) => (isStreamingAction(msg) && !isStreamComplete(msg)) ? true : false
 
-  //logStream$.subscribe(msg => console.log.apply(null, msg.message) )
+
   logStream$.subscribe(msg => logger.apply(null, msg.message));
 
   var id = 0;
@@ -31,7 +44,7 @@ function Commuter(worker, logger){
       let msg = { type, payload: args}
 
       if(expectResults == false){
-        return worker.postMessage(msg);
+        return port.postMessage(msg);
 
       }else{
   			
@@ -60,7 +73,7 @@ function Commuter(worker, logger){
             }
           })
 
-          worker.postMessage(msg)
+          port.postMessage(msg)
         })
       }
     }
