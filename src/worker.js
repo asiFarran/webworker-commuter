@@ -1,4 +1,5 @@
 
+// THIS is here only to satisfy pseudo worker for the unit tests
 if(!self.removeEventListener){
 	self.removeEventListener = function(){}
 }
@@ -21,7 +22,6 @@ const incWithPromise = function(num){
 }
 
 const withObservable = function(num){
-//  log('what do think?',{name:'asi'},5)
 	return Rx.Observable.of(1,2,3).map(x => x + 1);
 }
 
