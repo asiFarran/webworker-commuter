@@ -19,4 +19,3 @@ multiply(3,2).subscribe(res => {
   console.log('multiply got response', res)
 });		
 
-global.sideEffect = sideEffect
