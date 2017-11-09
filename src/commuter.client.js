@@ -3,6 +3,7 @@ import "rxjs/add/operator/filter";
 import "rxjs/add/operator/map";
 import "rxjs/add/operator/partition";
 import "rxjs/add/observable/fromevent";
+import {v4 as uuid} from 'uuid';
 
 const configureWorker = worker => {  
 
@@ -34,8 +35,7 @@ const Commuter = (worker, logger) => {
 
   logStream$.subscribe(msg => logger.apply(null, msg.message));
 
-  var id = 0;
-  const generateId = () => id++
+  const generateId = () => uuid()
 
   const action = type => {
 
